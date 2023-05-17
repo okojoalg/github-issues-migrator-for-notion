@@ -1,0 +1,74 @@
+name: Migrate
+
+on:
+  workflow_dispatch:
+      inputs:
+        github_token:
+          description: 'Your GitHub token'
+          required: true
+          type: string
+        github_owner:
+          description: 'Repository owner name'
+          required: true
+          type: string
+        github_repository:
+          description: 'Repository name'
+          required: true
+          type: string
+        notion_token:
+          description: 'Your Notion token'
+          required: true
+          type: string
+        notion_page_id:
+          description: 'Notion page ID'
+          required: true
+          type: string
+        notion_db_title:
+          description: 'Notion DB title'
+          required: true
+          type: string
+        time_zone:
+          description: 'Time Zone'
+          required: true
+          type: string
+          default: UTC
+jobs:
+  migrate:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        python-version: ["3.11"]
+    permissions:
+     contents: 'read'
+     issues: 'read'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install poetry
+        run: |
+          curl -sL https://install.python-poetry.org | python - -y ${{ matrix.bootstrap-args }}
+      - name: Install dependencies
+        run: poetry install
+      - name: Mask tokens
+        run: |
+          INPUT_GITHUB_TOKEN=$(jq -r '.inputs.github_token' $GITHUB_EVENT_PATH)
+          INPUT_NOTIRON_TOKEN=$(jq -r '.inputs.notion_token' $GITHUB_EVENT_PATH)
+          echo ::add-mask::$INPUT_GITHUB_TOKEN
+          echo ::add-mask::$INPUT_NOTIRON_TOKEN
+          echo GITHUB_TOKEN="$INPUT_GITHUB_TOKEN" >> $GITHUB_ENV
+          echo NOTIRON_TOKEN="$INPUT_NOTIRON_TOKEN" >> $GITHUB_ENV
+      - name: Migrate issues to Notion database
+        run: |
+          poetry run python main.py \
+             --github-token "$GITHUB_TOKEN" \
+             --github-owner "${{ inputs.github_owner }}" \
+             --github-repository "${{ inputs.github_repository }}" \
+             --notion-token "$NOTIRON_TOKEN" \
+             --notion-page-id "${{ inputs.notion_page_id }}" \
+             --notion-db-title "${{ inputs.notion_db_title }}" \
+             --time-zone "${{ inputs.time_zone }}"

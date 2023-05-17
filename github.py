@@ -21,7 +21,7 @@ class GitHub:
         return response.url
 
     def _get_recursively(self, response: requests.Response, j: List[dict] = []):
-        sleep(1)
+        sleep(10)
         j = j + response.json()
         if next_ := response.links.get("next"):
             response = requests.get(next_.get("url"), headers=self.headers)
